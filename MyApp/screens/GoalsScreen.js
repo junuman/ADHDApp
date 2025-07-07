@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from '../firebase';
-import {
-  doc,
-  getDoc,
-  setDoc
-} from 'firebase/firestore';
 import {
   View,
   Text,
   TextInput,
-  Button,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Notifications from 'expo-notifications';
@@ -27,15 +21,11 @@ export default function GoalsScreen() {
   const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
-    if (auth.currentUser) {
-      loadGoals();
-    }
+    loadGoals();
   }, []);
 
   useEffect(() => {
-    if (auth.currentUser) {
-      saveGoals();
-    }
+    saveGoals();
   }, [goals]);
 
   const addGoal = async () => {
@@ -49,8 +39,7 @@ export default function GoalsScreen() {
       reminderTime: time,
     };
 
-    const updatedGoals = [...goals, newGoal];
-    setGoals(updatedGoals);
+    setGoals([...goals, newGoal]);
     setGoal('');
 
     await scheduleReminder(goal, time);
@@ -82,33 +71,18 @@ export default function GoalsScreen() {
 
   const saveGoals = async () => {
     try {
-      const user = auth.currentUser;
-      if (!user) return;
-
-      await setDoc(doc(db, 'users', user.uid), {
-        goals: goals,
-      });
+      await AsyncStorage.setItem('goals', JSON.stringify(goals));
     } catch (e) {
-      console.log('Firestore save error:', e);
+      console.log('Error saving goals:', e);
     }
   };
 
   const loadGoals = async () => {
     try {
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setGoals(data.goals || []);
-      } else {
-        console.log('No saved goals found.');
-      }
+      const stored = await AsyncStorage.getItem('goals');
+      if (stored) setGoals(JSON.parse(stored));
     } catch (e) {
-      console.log('Firestore load error:', e);
+      console.log('Error loading goals:', e);
     }
   };
 
@@ -140,7 +114,10 @@ export default function GoalsScreen() {
         </Picker>
       </View>
 
-      <Button title="Pick Reminder Time" onPress={() => setShowPicker(true)} />
+      <TouchableOpacity style={styles.button} onPress={() => setShowPicker(true)}>
+        <Text style={styles.buttonText}>⏰ Pick Reminder Time</Text>
+      </TouchableOpacity>
+
       {showPicker && (
         <DateTimePicker
           mode="time"
@@ -154,7 +131,9 @@ export default function GoalsScreen() {
         />
       )}
 
-      <Button title="Add Goal" onPress={addGoal} />
+      <TouchableOpacity style={styles.button} onPress={addGoal}>
+        <Text style={styles.buttonText}>➕ Add Goal</Text>
+      </TouchableOpacity>
 
       <FlatList
         data={goals}
@@ -162,28 +141,83 @@ export default function GoalsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => toggleComplete(item.id)}>
             <Text style={[styles.goal, item.completed && styles.completed]}>
-              {item.text} ({item.type}) ⏰ {new Date(item.reminderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {item.text} ({item.type}) ⏰{' '}
+              {new Date(item.reminderTime).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </Text>
           </TouchableOpacity>
         )}
       />
 
       <View style={{ marginTop: 20 }}>
-        <Text style={styles.header}>📆 Summary:</Text>
-        <Text>✅ Daily: {completedDaily}</Text>
-        <Text>✅ Weekly: {completedWeekly}</Text>
-        <Text>✅ Monthly: {completedMonthly}</Text>
+        <Text style={styles.header}>📅 Summary:</Text>
+        <Text style={styles.xp}>✅ Daily: {completedDaily}</Text>
+        <Text style={styles.xp}>✅ Weekly: {completedWeekly}</Text>
+        <Text style={styles.xp}>✅ Monthly: {completedMonthly}</Text>
+        <Text style={styles.xp}>💥 XP: {completedDaily + completedWeekly + completedMonthly}</Text>
+        <Text style={styles.xp}>🍬 Level: {Math.floor((completedDaily + completedWeekly + completedMonthly) / 5) + 1}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, flex: 1 },
-  header: { fontSize: 20, marginBottom: 10 },
-  input: { borderBottomWidth: 1, marginBottom: 10, padding: 5 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  picker: { flex: 1, height: 40 },
-  goal: { padding: 10, fontSize: 16, backgroundColor: '#eee', marginTop: 5 },
-  completed: { textDecorationLine: 'line-through', backgroundColor: '#d4f7d4' },
+  container: {
+    padding: 20,
+    flex: 1,
+    backgroundColor: '#F8F9FB',
+  },
+  header: {
+    fontSize: 22,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  picker: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  goal: {
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#eee',
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  completed: {
+    textDecorationLine: 'line-through',
+    backgroundColor: '#d4f7d4',
+  },
+  xp: {
+    fontSize: 16,
+    marginTop: 4,
+  },
 });
