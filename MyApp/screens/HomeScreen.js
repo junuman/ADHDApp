@@ -1,10 +1,22 @@
 import React, { useEffect } from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import { scheduleGoalReminder } from '../utils/notifications';
+import { auth } from '../firebase'; // ✅ Fix: use relative path
+import { signInAnonymously } from 'firebase/auth';
 
 export default function HomeScreen({ navigation }) {
   useEffect(() => {
-    scheduleGoalReminder();
+    const loginAnon = async () => {
+      try {
+        await signInAnonymously(auth);
+        console.log('Signed in anonymously');
+      } catch (err) {
+        console.log('Anon login failed', err);
+      }
+    };
+
+    loginAnon();
+    scheduleGoalReminder(); // ✅ Optional: global reminder
   }, []);
 
   return (

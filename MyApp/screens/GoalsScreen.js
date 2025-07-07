@@ -1,34 +1,76 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth, db } from '../firebase';
+import {
+  doc,
+  getDoc,
+  setDoc
+} from 'firebase/firestore';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Notifications from 'expo-notifications';
 
 export default function GoalsScreen() {
   const [goal, setGoal] = useState('');
   const [type, setType] = useState('daily');
   const [goals, setGoals] = useState([]);
+  const [time, setTime] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
-    loadGoals();
+    if (auth.currentUser) {
+      loadGoals();
+    }
   }, []);
 
   useEffect(() => {
-    saveGoals();
+    if (auth.currentUser) {
+      saveGoals();
+    }
   }, [goals]);
 
-  const addGoal = () => {
-    if (goal.trim() !== '') {
-      setGoals([
-        ...goals,
-        {
-          text: goal,
-          id: Date.now().toString(),
-          completed: false,
-          type: type,
-        },
-      ]);
-      setGoal('');
-    }
+  const addGoal = async () => {
+    if (goal.trim() === '') return;
+
+    const newGoal = {
+      text: goal,
+      id: Date.now().toString(),
+      completed: false,
+      type: type,
+      reminderTime: time,
+    };
+
+    const updatedGoals = [...goals, newGoal];
+    setGoals(updatedGoals);
+    setGoal('');
+
+    await scheduleReminder(goal, time);
+  };
+
+  const scheduleReminder = async (text, time) => {
+    const trigger = new Date(time);
+    trigger.setSeconds(0);
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📌 Reminder',
+        body: text,
+      },
+      trigger: {
+        hour: trigger.getHours(),
+        minute: trigger.getMinutes(),
+        repeats: true,
+      },
+    });
   };
 
   const toggleComplete = (id) => {
@@ -40,22 +82,36 @@ export default function GoalsScreen() {
 
   const saveGoals = async () => {
     try {
-      await AsyncStorage.setItem('goals', JSON.stringify(goals));
+      const user = auth.currentUser;
+      if (!user) return;
+
+      await setDoc(doc(db, 'users', user.uid), {
+        goals: goals,
+      });
     } catch (e) {
-      console.log('Error saving goals:', e);
+      console.log('Firestore save error:', e);
     }
   };
 
   const loadGoals = async () => {
     try {
-      const stored = await AsyncStorage.getItem('goals');
-      if (stored) setGoals(JSON.parse(stored));
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setGoals(data.goals || []);
+      } else {
+        console.log('No saved goals found.');
+      }
     } catch (e) {
-      console.log('Error loading goals:', e);
+      console.log('Firestore load error:', e);
     }
   };
 
-  // ✅ Moved summary logic inside the component
   const completedDaily = goals.filter(g => g.type === 'daily' && g.completed).length;
   const completedWeekly = goals.filter(g => g.type === 'weekly' && g.completed).length;
   const completedMonthly = goals.filter(g => g.type === 'monthly' && g.completed).length;
@@ -84,6 +140,20 @@ export default function GoalsScreen() {
         </Picker>
       </View>
 
+      <Button title="Pick Reminder Time" onPress={() => setShowPicker(true)} />
+      {showPicker && (
+        <DateTimePicker
+          mode="time"
+          value={time}
+          is24Hour={false}
+          display="default"
+          onChange={(event, selectedTime) => {
+            setShowPicker(Platform.OS === 'ios');
+            if (selectedTime) setTime(selectedTime);
+          }}
+        />
+      )}
+
       <Button title="Add Goal" onPress={addGoal} />
 
       <FlatList
@@ -92,13 +162,12 @@ export default function GoalsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => toggleComplete(item.id)}>
             <Text style={[styles.goal, item.completed && styles.completed]}>
-              {item.text} ({item.type})
+              {item.text} ({item.type}) ⏰ {new Date(item.reminderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </TouchableOpacity>
         )}
       />
 
-      {/* ✅ Summary Section Properly Rendered */}
       <View style={{ marginTop: 20 }}>
         <Text style={styles.header}>📆 Summary:</Text>
         <Text>✅ Daily: {completedDaily}</Text>
