@@ -12,6 +12,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Notifications from 'expo-notifications';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 
 export default function GoalsScreen() {
   const [goal, setGoal] = useState('');
@@ -24,25 +26,21 @@ export default function GoalsScreen() {
     loadGoals();
   }, []);
 
-  useEffect(() => {
-    saveGoals();
-  }, [goals]);
+  const loadGoals = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('goals');
+      if (stored) setGoals(JSON.parse(stored));
+    } catch (e) {
+      console.log('Error loading goals:', e);
+    }
+  };
 
-  const addGoal = async () => {
-    if (goal.trim() === '') return;
-
-    const newGoal = {
-      text: goal,
-      id: Date.now().toString(),
-      completed: false,
-      type: type,
-      reminderTime: time,
-    };
-
-    setGoals([...goals, newGoal]);
-    setGoal('');
-
-    await scheduleReminder(goal, time);
+  const saveGoals = async (newGoals) => {
+    try {
+      await AsyncStorage.setItem('goals', JSON.stringify(newGoals));
+    } catch (e) {
+      console.log('Error saving goals:', e);
+    }
   };
 
   const scheduleReminder = async (text, time) => {
@@ -62,27 +60,44 @@ export default function GoalsScreen() {
     });
   };
 
-  const toggleComplete = (id) => {
+  const addGoal = async () => {
+    if (goal.trim() === '') return;
+
+    const newGoal = {
+      text: goal,
+      id: Date.now().toString(),
+      completed: false,
+      type: type,
+      reminderTime: time,
+    };
+
+    const updatedGoals = [...goals, newGoal];
+    setGoals(updatedGoals);
+    setGoal('');
+    await saveGoals(updatedGoals);
+    await scheduleReminder(goal, time);
+  };
+
+  const toggleComplete = async (id) => {
     const updated = goals.map((g) =>
       g.id === id ? { ...g, completed: !g.completed } : g
     );
     setGoals(updated);
+    await saveGoals(updated);
+    await updateXP(updated);
   };
 
-  const saveGoals = async () => {
-    try {
-      await AsyncStorage.setItem('goals', JSON.stringify(goals));
-    } catch (e) {
-      console.log('Error saving goals:', e);
-    }
-  };
+  const updateXP = async (goalList) => {
+    const completed = goalList.filter(g => g.completed).length;
+    const xp = completed * 10;
+    const level = Math.floor(xp / 100) + 1;
 
-  const loadGoals = async () => {
     try {
-      const stored = await AsyncStorage.getItem('goals');
-      if (stored) setGoals(JSON.parse(stored));
+      const user = auth.currentUser;
+      const docRef = doc(db, 'users', user.uid);
+      await setDoc(docRef, { xp, level }, { merge: true });
     } catch (e) {
-      console.log('Error loading goals:', e);
+      console.log('Error syncing XP:', e);
     }
   };
 
@@ -156,8 +171,7 @@ export default function GoalsScreen() {
         <Text style={styles.xp}>✅ Daily: {completedDaily}</Text>
         <Text style={styles.xp}>✅ Weekly: {completedWeekly}</Text>
         <Text style={styles.xp}>✅ Monthly: {completedMonthly}</Text>
-        <Text style={styles.xp}>💥 XP: {completedDaily + completedWeekly + completedMonthly}</Text>
-        <Text style={styles.xp}>🍬 Level: {Math.floor((completedDaily + completedWeekly + completedMonthly) / 5) + 1}</Text>
+        <Text style={styles.hint}>✨ Complete goals to earn XP!</Text>
       </View>
     </View>
   );
@@ -219,5 +233,9 @@ const styles = StyleSheet.create({
   xp: {
     fontSize: 16,
     marginTop: 4,
+  },
+  hint: {
+    fontStyle: 'italic',
+    marginTop: 10,
   },
 });
