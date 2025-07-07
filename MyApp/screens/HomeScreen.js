@@ -1,5 +1,11 @@
 import React from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { scheduleGoalReminder } from '../utils/notifications';
+
+useEffect(() => {
+  scheduleGoalReminder();
+}, []);
 
 export default function HomeScreen({ navigation }) {
   return (
