@@ -60,7 +60,7 @@ export default function PetScreen() {
       {showAnimation && (
         <LottieView
           ref={animationRef}
-          source={require('../assets/levelup.json')}
+          source={require('../assets/animations/levelup.json')}
           autoPlay
           loop={false}
           style={{ width: 200, height: 200 }}
