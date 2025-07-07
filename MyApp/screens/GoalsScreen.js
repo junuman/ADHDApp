@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet, TouchableOpacity, Picker } from 'react-native';
+import { View, Text, TextInput, Button, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
 
 export default function GoalsScreen() {
   const [goal, setGoal] = useState('');
@@ -54,15 +55,22 @@ export default function GoalsScreen() {
     }
   };
 
+  // ✅ Moved summary logic inside the component
+  const completedDaily = goals.filter(g => g.type === 'daily' && g.completed).length;
+  const completedWeekly = goals.filter(g => g.type === 'weekly' && g.completed).length;
+  const completedMonthly = goals.filter(g => g.type === 'monthly' && g.completed).length;
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Your Goals</Text>
+
       <TextInput
         placeholder="Enter a goal..."
         style={styles.input}
         value={goal}
         onChangeText={setGoal}
       />
+
       <View style={styles.pickerRow}>
         <Text>Type: </Text>
         <Picker
@@ -75,6 +83,7 @@ export default function GoalsScreen() {
           <Picker.Item label="Monthly" value="monthly" />
         </Picker>
       </View>
+
       <Button title="Add Goal" onPress={addGoal} />
 
       <FlatList
@@ -88,6 +97,14 @@ export default function GoalsScreen() {
           </TouchableOpacity>
         )}
       />
+
+      {/* ✅ Summary Section Properly Rendered */}
+      <View style={{ marginTop: 20 }}>
+        <Text style={styles.header}>📆 Summary:</Text>
+        <Text>✅ Daily: {completedDaily}</Text>
+        <Text>✅ Weekly: {completedWeekly}</Text>
+        <Text>✅ Monthly: {completedMonthly}</Text>
+      </View>
     </View>
   );
 }
@@ -101,14 +118,3 @@ const styles = StyleSheet.create({
   goal: { padding: 10, fontSize: 16, backgroundColor: '#eee', marginTop: 5 },
   completed: { textDecorationLine: 'line-through', backgroundColor: '#d4f7d4' },
 });
-
-const completedDaily = goals.filter(g => g.type === 'daily' && g.completed).length;
-const completedWeekly = goals.filter(g => g.type === 'weekly' && g.completed).length;
-const completedMonthly = goals.filter(g => g.type === 'monthly' && g.completed).length;
-
-<View style={{ marginTop: 20 }}>
-  <Text>📆 Summary:</Text>
-  <Text>✅ Daily: {completedDaily}</Text>
-  <Text>✅ Weekly: {completedWeekly}</Text>
-  <Text>✅ Monthly: {completedMonthly}</Text>
-</View>
