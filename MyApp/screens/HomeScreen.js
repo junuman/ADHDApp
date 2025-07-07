@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
-import { useEffect } from 'react';
 import { scheduleGoalReminder } from '../utils/notifications';
 
-useEffect(() => {
-  scheduleGoalReminder();
-}, []);
-
 export default function HomeScreen({ navigation }) {
+  useEffect(() => {
+    scheduleGoalReminder();
+  }, []);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to Your Focus Pet</Text>

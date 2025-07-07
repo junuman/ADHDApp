@@ -5,10 +5,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function PetScreen() {
   const [health, setHealth] = useState(0);
   const [level, setLevel] = useState(1);
+  const [emoji, setEmoji] = useState("🐣");
 
   useEffect(() => {
     calculatePetStats();
   }, []);
+
+  const getPetEmoji = (lvl) => {
+    if (lvl >= 6) return "🐉";      // Legendary
+    if (lvl >= 4) return "🦖";      // Grown
+    if (lvl >= 2) return "🐶";      // Teen
+    return "🐣";                    // Baby
+  };
 
   const calculatePetStats = async () => {
     try {
@@ -19,27 +27,28 @@ export default function PetScreen() {
       const totalGoals = goals.length;
       const healthPercent = totalGoals > 0 ? (completedGoals / totalGoals) * 100 : 0;
 
+      const lvl = Math.floor(completedGoals / 5) + 1;
+
       setHealth(healthPercent);
-      setLevel(Math.floor(completedGoals / 5) + 1); // 5 completed goals = level up
+      setLevel(lvl);
+      setEmoji(getPetEmoji(lvl));
     } catch (e) {
-      console.log('Error calculating pet health:', e);
+      console.log('Error calculating pet stats:', e);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.pet}>🐾</Text>
-      <Text style={styles.text}>Level: {level}</Text>
-      <Text style={styles.text}>Health: {Math.round(health)}%</Text>
-      <Text style={{ fontStyle: 'italic' }}>
-        Keep finishing goals to help your pet grow!
-      </Text>
+      <Text style={styles.pet}>{emoji}</Text>
+      <Text style={styles.status}>Level: {level}</Text>
+      <Text style={styles.status}>Health: {Math.round(health)}%</Text>
+      <Text style={{ fontStyle: 'italic' }}>Complete more goals to help your pet grow!</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  pet: { fontSize: 100 },
-  text: { fontSize: 20, marginVertical: 5 },
+  pet: { fontSize: 120 },
+  status: { fontSize: 20, marginVertical: 5 },
 });
