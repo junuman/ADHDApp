@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { GLView } from 'expo-gl';
 import { Renderer } from 'expo-three';
 import { Asset } from 'expo-asset';
-import { loadAsync } from 'expo-three/build/loaders/GLTFLoader';
+import { GLTFLoader } from 'three-stdlib/loaders/GLTFLoader';
 import * as THREE from 'three';
 
 export default function Pet3D() {
@@ -21,13 +21,25 @@ export default function Pet3D() {
     const ambientLight = new THREE.AmbientLight(0xffffff, 1);
     scene.add(ambientLight);
 
+    // Load the 3D model
     const asset = Asset.fromModule(require('../assets/models/yourPet.glb'));
     await asset.downloadAsync();
 
-    const { scene: model } = await loadAsync(asset.uri);
-    modelRef.current = model;
-    scene.add(model);
+    const loader = new GLTFLoader();
+    loader.load(
+      asset.localUri || asset.uri,
+      (gltf) => {
+        const model = gltf.scene;
+        modelRef.current = model;
+        scene.add(model);
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading model:', error);
+      }
+    );
 
+    // Animation loop
     const render = () => {
       requestAnimationFrame(render);
       if (modelRef.current) modelRef.current.rotation.y += 0.01;
