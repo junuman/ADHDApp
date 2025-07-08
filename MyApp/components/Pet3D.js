@@ -1,9 +1,9 @@
 import React, { useRef } from 'react';
 import { GLView } from 'expo-gl';
-import { Renderer } from 'expo-three';
 import { Asset } from 'expo-asset';
-import { GLTFLoader } from 'three-stdlib/loaders/GLTFLoader';
+import { Renderer } from 'expo-three';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three-stdlib';
 
 export default function Pet3D() {
   const modelRef = useRef();
@@ -11,6 +11,7 @@ export default function Pet3D() {
   const onContextCreate = async (gl) => {
     const { drawingBufferWidth: width, drawingBufferHeight: height } = gl;
 
+    // Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     camera.position.z = 2;
@@ -18,10 +19,11 @@ export default function Pet3D() {
     const renderer = new Renderer({ gl });
     renderer.setSize(width, height);
 
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 1);
     scene.add(ambientLight);
 
-    // Load the 3D model
+    // Load model
     const asset = Asset.fromModule(require('../assets/models/yourPet.glb'));
     await asset.downloadAsync();
 
@@ -35,14 +37,16 @@ export default function Pet3D() {
       },
       undefined,
       (error) => {
-        console.error('Error loading model:', error);
+        console.error('❌ Failed to load model:', error);
       }
     );
 
-    // Animation loop
+    // Animation/render loop
     const render = () => {
       requestAnimationFrame(render);
-      if (modelRef.current) modelRef.current.rotation.y += 0.01;
+      if (modelRef.current) {
+        modelRef.current.rotation.y += 0.01;
+      }
       renderer.render(scene, camera);
       gl.endFrameEXP();
     };
