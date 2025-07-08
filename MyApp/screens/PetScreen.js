@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Progress from 'react-native-progress';
 import LottieView from 'lottie-react-native';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import Pet3D from '../components/Pet3D';
 
 export default function PetScreen() {
   const [xp, setXp] = useState(0);
   const [level, setLevel] = useState(1);
-  const [emoji, setEmoji] = useState("🐣");
   const [progress, setProgress] = useState(0);
   const animationRef = useRef(null);
   const [showAnimation, setShowAnimation] = useState(false);
@@ -17,13 +17,6 @@ export default function PetScreen() {
   useEffect(() => {
     calculateStats();
   }, []);
-
-  const getPetEmoji = (lvl) => {
-    if (lvl >= 6) return "🐉";
-    if (lvl >= 4) return "🦖";
-    if (lvl >= 2) return "🐶";
-    return "🐣";
-  };
 
   const calculateStats = async () => {
     const user = auth.currentUser;
@@ -37,7 +30,6 @@ export default function PetScreen() {
     const newLevel = Math.floor(xpGained / 100) + 1;
     const newProgress = (xpGained % 100) / 100;
 
-    // Animate if XP has increased
     const userSnap = await getDoc(docRef);
     const previousXP = userSnap.exists() ? userSnap.data().xp : 0;
     if (xpGained > previousXP) {
@@ -46,13 +38,11 @@ export default function PetScreen() {
       setTimeout(() => setShowAnimation(false), 2000);
     }
 
-    // Save to Firestore
     await setDoc(docRef, { xp: xpGained, level: newLevel }, { merge: true });
 
     setXp(xpGained);
     setLevel(newLevel);
     setProgress(newProgress);
-    setEmoji(getPetEmoji(newLevel));
   };
 
   return (
@@ -67,7 +57,11 @@ export default function PetScreen() {
         />
       )}
 
-      {!showAnimation && <Text style={styles.pet}>{emoji}</Text>}
+      {!showAnimation && (
+        <View style={styles.petContainer}>
+          <Pet3D />
+        </View>
+      )}
 
       <Text style={styles.status}>Level: {level}</Text>
       <Text style={styles.status}>XP: {xp}</Text>
@@ -86,8 +80,22 @@ export default function PetScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  pet: { fontSize: 120 },
-  status: { fontSize: 20, marginVertical: 5 },
-  hint: { fontStyle: 'italic', marginTop: 20 },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  petContainer: {
+    width: Dimensions.get('window').width * 0.8,
+    height: 300,
+  },
+  status: {
+    fontSize: 20,
+    marginVertical: 5,
+  },
+  hint: {
+    fontStyle: 'italic',
+    marginTop: 20,
+  },
 });
